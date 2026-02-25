@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Mini Snake (single file)</title>
+  <style>
+    html,body{height:100%;margin:0;display:flex;align-items:center;justify-content:center;background:#111;color:#eee;font-family:sans-serif}
+    .wrap{display:flex;flex-direction:column;align-items:center;gap:10px}
+    canvas{background:#071022;border:6px solid #0b86ff;border-radius:8px}
+    .info{display:flex;gap:12px;align-items:center}
+    button{background:#0b86ff;color:#012;border:0;padding:6px 10px;border-radius:6px;cursor:pointer}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <canvas id="c" width="400" height="400"></canvas>
+    <div class="info">
+      <div>Score: <span id="score">0</span></div>
+      <button id="pause">Pause</button>
+      <div style="opacity:.8">Use arrows or WASD. Space to pause/restart.</div>
+    </div>
+  </div>
+
+  <script>
+  (function(){
+    const canvas = document.getElementById('c');
+    const ctx = canvas.getContext('2d');
+    const scoreEl = document.getElementById('score');
+    const pauseBtn = document.getElementById('pause');
+    const grid = 20;
+    const cols = canvas.width / grid;
+    const rows = canvas.height / grid;
+
+    let snake = [{x: Math.floor(cols/2), y: Math.floor(rows/2)}];
+    let dir = {x:1, y:0};
+    let food = spawnFood();
+    let score = 0;
+    let running = true;
+    let speed = 100; // ms per step
+    let timer = null;
+
+    function spawnFood(){
+      while(true){
+        const f = {x: Math.floor(Math.random()*cols), y: Math.floor(Math.random()*rows)};
+        if(!snake.some(s=>s.x===f.x && s.y===f.y)) return f;
+      }
+    }
+
+    function step(){
+      const head = {x: snake[0].x + dir.x, y: snake[0].y + dir.y};
+      // wrap around edges
+      head.x = (head.x + cols) % cols;
+      head.y = (head.y + rows) % rows;
+      // collision with self
+      if(snake.some(s=>s.x===head.x && s.y===head.y)) return gameOver();
+      snake.unshift(head);
+      if(head.x===food.x && head.y===food.y){
+        score += 1;
+        scoreEl.textContent = score;
+        food = spawnFood();
+      } else {
+        snake.pop();
+      }
+      draw();
+    }
+
+    function draw(){
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      // background grid subtle
+      ctx.fillStyle = '#071022';
+      ctx.fillRect(0,0,canvas.width,canvas.height);
+
+      // draw food
+      ctx.fillStyle = '#ff5f57';
+      ctx.fillRect(food.x*grid+2, food.y*grid+2, grid-4, grid-4);
+
+      // draw snake
+      for(let i=0;i<snake.length;i++){
+        const s = snake[i];
+        ctx.fillStyle = i===0 ? '#fff' : '#4ee1a0';
+        ctx.fillRect(s.x*grid+1, s.y*grid+1, grid-2, grid-2);
+      }
+    }
+
+    function gameOver(){
+      running = false;
+      clearInterval(timer);
+      pauseBtn.textContent = 'Restart';
+      ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      ctx.fillRect(0,0,canvas.width,canvas.height);
+      ctx.fillStyle = '#fff';
+      ctx.font = '20px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('Game Over — Score: '+score, canvas.width/2, canvas.height/2);
+    }
+
+    function start(){
+      if(timer) clearInterval(timer);
+      timer = setInterval(()=>{ if(running) step(); }, speed);
+    }
+
+    // controls
+    window.addEventListener('keydown', e=>{
+      const k = e.key;
+      if(k === ' '){
+        if(!running){ reset(); } else { togglePause(); }
+        e.preventDefault();
+        return;
+      }
+      const map = {
+        ArrowUp: {x:0,y:-1}, ArrowDown:{x:0,y:1}, ArrowLeft:{x:-1,y:0}, ArrowRight:{x:1,y:0},
+        w:{x:0,y:-1}, s:{x:0,y:1}, a:{x:-1,y:0}, d:{x:1,y:0}
+      };
+      const nd = map[k];
+      if(nd){
+        // prevent reversing
+        if(snake.length>1 && nd.x===-dir.x && nd.y===-dir.y) return;
+        dir = nd;
+      }
+    });
+
+    function togglePause(){
+      running = !running;
+      pauseBtn.textContent = running ? 'Pause' : 'Resume';
+    }
+
+    pauseBtn.addEventListener('click', ()=>{
+      if(!running && timer==null){ reset(); return; }
+      togglePause();
+    });
+
+    function reset(){
+      snake = [{x: Math.floor(cols/2), y: Math.floor(rows/2)}];
+      dir = {x:1,y:0};
+      food = spawnFood();
+      score = 0;
+      scoreEl.textContent = score;
+      running = true;
+      pauseBtn.textContent = 'Pause';
+      start();
+    }
+
+    // initial draw & start
+    draw();
+    start();
+  })();
+  </script>
+</body>
+</html>
